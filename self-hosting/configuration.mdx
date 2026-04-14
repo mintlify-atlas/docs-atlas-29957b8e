@@ -1,0 +1,240 @@
+---
+title: "Configure Fluxcord"
+description: "Complete reference for every option in Fluxcord's config.js — bot tokens, admin accounts, logging categories, command prefix, and voice channel maps."
+---
+
+Fluxcord is configured through a single `config.js` file in the repository root. This file is a plain ES module that exports a JavaScript object — there is no `.env` file or environment variable parsing involved. Copy `config.example.js` to `config.js` and fill in your values before starting the bot.
+
+<Warning>
+  `config.js` contains sensitive secrets (bot tokens, runner secret). Do not commit it to version control. The repository's `.gitignore` already excludes it.
+</Warning>
+
+## Full example
+
+```javascript config.js
+const Config = {
+  // The base URL of Fluxer API. If you're not using a self-hosted Fluxer instance,
+  // do not touch this.
+  FluxerAPIBaseURL: "https://api.fluxer.app",
+
+  // The path for the bot's data directory. Probably do not touch if you're using Docker.
+  DataFolderPath: "/data",
+
+  // The Discord bot token
+  DiscordBotToken: "DISCORD_BOT_TOKEN",
+
+  // The Discord client ID
+  DiscordClientId: "0000000000000000000",
+
+  // The Fluxer bot token
+  FluxerBotToken: "FLUXER_BOT_TOKEN",
+
+  // The Fluxer temporary emoji store community ID
+  FluxerTempEmojiGuildId: "0000000000000000000",
+
+  // The admin account IDs. Allows accessing admin commands, and
+  // also allows verifying bridging without having Manage Channel perms.
+  AdminAccountIds: ["0000000000000000000"],
+
+  // The footer of every embed sent by Fluxcord. Optional.
+  EmbedFooterContent: "",
+
+  // The categories that the bot will log, remove any that you don't need.
+  // Categories: FLUXER, DISCORD, DB, META, VOICE, DEBUG
+  LoggingCategories: ["FLUXER", "DISCORD", /*'DB',*/ "META", "VOICE"],
+
+  // The prefix of the bot
+  BotPrefix: "fc!",
+
+  // The port the voice runner WebSocket server listens on.
+  RunnerWsPort: 8765,
+
+  // Secret shared between the core bot and voice runners. Set to a long random string.
+  RunnerSecret: "",
+
+  // Voice channel bridge mappings (optional).
+  // Each entry links a Discord voice channel to a Fluxer voice channel.
+  // Leave empty (or omit) to disable voice bridging entirely.
+  //
+  // Requires voice/node_modules to be installed: cd voice && pnpm install (or npm install)
+  //
+  // VoiceChannelMaps: [
+  //   {
+  //     discordGuildId: "123456789012345678",   // Discord server ID
+  //     discordChannelId: "234567890123456789", // Discord voice channel ID
+  //     fluxerGuildId: "345678901234567890",    // Fluxer community ID
+  //     fluxerChannelId: "456789012345678901",  // Fluxer voice channel ID
+  //   },
+  // ],
+};
+
+export default Config;
+```
+
+## Options
+
+### `FluxerAPIBaseURL`
+
+<ParamField path="FluxerAPIBaseURL" type="string" default="https://api.fluxer.app">
+  The base URL for the Fluxer REST API. Only change this if you are running a self-hosted Fluxer instance. For the public Fluxer platform, leave this at its default value.
+</ParamField>
+
+---
+
+### `DataFolderPath`
+
+<ParamField path="DataFolderPath" type="string" required default="/data">
+  Absolute path to the directory where Fluxcord stores its SQLite database (`fluxcord.db`) and generated runtime config (`fluxcord.json`). When running under Docker Compose, this maps to the `./data` volume mount and should be left at `/data`.
+</ParamField>
+
+---
+
+### `DiscordBotToken`
+
+<ParamField path="DiscordBotToken" type="string" required>
+  The token for your Discord bot application, obtained from the [Discord Developer Portal](https://discord.com/developers/applications). Treat this as a password — rotate it immediately if it is ever exposed.
+</ParamField>
+
+---
+
+### `DiscordClientId`
+
+<ParamField path="DiscordClientId" type="string" required>
+  The application (client) ID of your Discord bot. Used to generate the OAuth2 invite link printed at startup.
+</ParamField>
+
+---
+
+### `FluxerBotToken`
+
+<ParamField path="FluxerBotToken" type="string" required>
+  The token for your Fluxer bot account, obtained from the Fluxer developer dashboard.
+</ParamField>
+
+---
+
+### `FluxerTempEmojiGuildId`
+
+<ParamField path="FluxerTempEmojiGuildId" type="string" required>
+  The ID of a Fluxer community where the bot will store temporary emoji. On first run, Fluxcord uploads `reply_l` and `reply_r` custom emoji to this community so that reply indicators render correctly in bridged messages. The community does not need to be a bridged community — a dedicated private community works fine.
+</ParamField>
+
+---
+
+### `AdminAccountIds`
+
+<ParamField path="AdminAccountIds" type="string[]" required>
+  An array of Discord or Fluxer user IDs that are granted admin privileges. Admin users can:
+
+  - Run privileged bot commands (e.g., `fc!setup`, `fc!bridge`, `fc!unbridge`)
+  - Verify bridging without holding Manage Channel permissions on the server
+</ParamField>
+
+---
+
+### `EmbedFooterContent`
+
+<ParamField path="EmbedFooterContent" type="string" default="">
+  Optional text appended to the footer of every embed sent by Fluxcord (e.g., setup confirmations and error messages). Leave empty to show no footer.
+</ParamField>
+
+---
+
+### `LoggingCategories`
+
+<ParamField path="LoggingCategories" type="string[]" default='["FLUXER", "DISCORD", "META", "VOICE"]'>
+  Controls which log categories are printed to stdout. Remove any category you do not need to reduce noise. Valid values:
+
+  | Category | What it logs |
+  |---|---|
+  | `FLUXER` | Fluxer client events and message handler activity |
+  | `DISCORD` | Discord client events and message handler activity |
+  | `DB` | Database queries and migration output |
+  | `META` | Bot lifecycle events (ready, errors, first-time setup) |
+  | `VOICE` | Voice bridging connection and state events |
+  | `DEBUG` | Verbose internal debug output (e.g., reconnect checks) |
+</ParamField>
+
+---
+
+### `BotPrefix`
+
+<ParamField path="BotPrefix" type="string" default="fc!">
+  The prefix used for all bot commands on both Discord and Fluxer. Changing this affects every command, including `fc!setup`, `fc!help`, and `fc!unbridge`. Choose a prefix that does not conflict with other bots in your servers.
+</ParamField>
+
+---
+
+### `RunnerWsPort`
+
+<ParamField path="RunnerWsPort" type="number" default="8765">
+  The port on which the voice runner WebSocket server listens. Only relevant when `VoiceChannelMaps` is configured. If you expose this port outside the Docker network (uncomment the `ports` entry in `docker-compose.yml`), ensure it is firewalled appropriately.
+</ParamField>
+
+---
+
+### `RunnerSecret`
+
+<ParamField path="RunnerSecret" type="string">
+  A shared secret used to authenticate voice runner connections to the core bot WebSocket server. Set this to a long random string when using voice bridging. Leave empty if voice bridging is disabled.
+</ParamField>
+
+---
+
+### `VoiceChannelMaps`
+
+<ParamField path="VoiceChannelMaps" type="object[]">
+  An array of voice channel bridge definitions. Omit this field entirely (or leave the array empty) to disable voice bridging. When at least one entry is present, Fluxcord loads the voice handler and opens the runner WebSocket server on `RunnerWsPort`.
+
+  <Note>
+    Voice bridging requires the voice runner's dependencies to be installed separately: `cd voice && pnpm install`. This is handled automatically inside the Docker image.
+  </Note>
+
+  Each entry in the array has the following fields:
+
+  <Expandable title="VoiceChannelMaps entry fields">
+    <ParamField path="discordGuildId" type="string" required>
+      The ID of the Discord server containing the voice channel.
+    </ParamField>
+    <ParamField path="discordChannelId" type="string" required>
+      The ID of the Discord voice channel to bridge.
+    </ParamField>
+    <ParamField path="fluxerGuildId" type="string" required>
+      The ID of the Fluxer community containing the voice channel.
+    </ParamField>
+    <ParamField path="fluxerChannelId" type="string" required>
+      The ID of the Fluxer voice channel to bridge.
+    </ParamField>
+  </Expandable>
+
+  Example:
+
+  ```javascript config.js
+  VoiceChannelMaps: [
+    {
+      discordGuildId: "123456789012345678",
+      discordChannelId: "234567890123456789",
+      fluxerGuildId: "345678901234567890",
+      fluxerChannelId: "456789012345678901",
+    },
+  ],
+  ```
+</ParamField>
+
+## Required vs optional fields
+
+| Field | Required |
+|---|---|
+| `DiscordBotToken` | Yes |
+| `DiscordClientId` | Yes |
+| `FluxerBotToken` | Yes |
+| `FluxerTempEmojiGuildId` | Yes |
+| `AdminAccountIds` | Yes |
+| `FluxerAPIBaseURL` | No — defaults to `https://api.fluxer.app` |
+| `DataFolderPath` | No — defaults to `/data` |
+| `EmbedFooterContent` | No — defaults to empty |
+| `LoggingCategories` | No — defaults to `FLUXER`, `DISCORD`, `META`, `VOICE` |
+| `BotPrefix` | No — defaults to `fc!` |
+| `RunnerWsPort` | No — defaults to `8765` |
+| `RunnerSecret` | No — required only when using voice bridging |
+| `VoiceChannelMaps` | No — omit to disable voice bridging |

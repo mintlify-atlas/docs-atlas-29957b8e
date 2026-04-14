@@ -1,0 +1,238 @@
+---
+title: "Bridging commands"
+description: "Commands for managing Discord-to-Fluxer channel bridges: fc!setup, fc!bridge, fc!verify, fc!unbridge, and fc!bridgelist with full parameter docs."
+---
+
+Bridging commands let server administrators connect a Discord text channel to a Fluxer community channel so messages flow between them. All commands in this group require **Manage Server** (Discord) or **Manage Community** (Fluxer) permission, or the user's ID must appear in `AdminAccountIds` in `config.js`.
+
+---
+
+## fc!setup
+
+The guided setup flow. Run this command on one platform to generate a short pairing code, then run it again on the other platform with that code to complete the bridge.
+
+```
+fc!setup [(code)|both|discord2fluxer|fluxer2discord|d2f|f2d]
+```
+
+**Default direction:** `both` (bidirectional bridging).
+
+### Parameters
+
+<ParamField path="param" type="string" default="both">
+  Either a 6-character pairing code received from the other platform, or a direction keyword: `both`, `discord2fluxer` / `d2f`, or `fluxer2discord` / `f2d`. Omit to start a new pairing session with `both` direction.
+</ParamField>
+
+### Two-step flow
+
+<Steps>
+  <Step title="Initiate on the first platform">
+    Run `fc!setup` (or `fc!setup discord2fluxer`, etc.) in the channel you want to bridge. Fluxcord generates a 6-character code and posts it.
+
+    ```
+    fc!setup both
+    ```
+
+    The bot replies with a message like:
+
+    ```
+    fc!setup a1b2c3
+    Execute that to the other side to continue setting up bridging! Code will expire after 5 minutes.
+    ```
+  </Step>
+  <Step title="Complete on the other platform">
+    Within 5 minutes, paste the code command into the matching channel on the other platform.
+
+    ```
+    fc!setup a1b2c3
+    ```
+
+    Both channels receive a confirmation message and the bridge is active.
+  </Step>
+</Steps>
+
+<Note>
+  Pairing codes expire after **5 minutes**. If the code expires, run `fc!setup` again on the initiating side to get a new one.
+</Note>
+
+<Warning>
+  Both channels must have the same NSFW setting. Fluxcord refuses to bridge an NSFW channel to a non-NSFW channel (and vice versa).
+</Warning>
+
+### Known limitations
+
+- Attachments may occasionally fail to bridge if either platform's CDN returns a corrupted or missing file.
+- Message edits from Discord to Fluxer are not bridged due to Fluxer API limitations.
+- NSFW channels on Fluxer cannot be bridged to Discord.
+
+---
+
+## fc!bridge
+
+An alternative setup flow for administrators who already know the target channel ID. Run this command on one side to initiate, then run `fc!verify` on the other side to approve.
+
+```
+fc!bridge <channelId> <both|discord2fluxer|fluxer2discord>
+```
+
+### Parameters
+
+<ParamField path="channelId" type="string" required>
+  The channel ID of the **other platform's** channel. If you run this on Fluxer, supply a Discord channel ID; if you run it on Discord, supply a Fluxer channel ID.
+</ParamField>
+
+<ParamField path="direction" type="string" required>
+  Bridge direction. One of `both`, `discord2fluxer`, or `fluxer2discord`.
+</ParamField>
+
+### Example
+
+```
+fc!bridge 1234567890123456789 both
+```
+
+The bot notifies the target channel that a bridge request is pending and instructs the admin on that side to run `fc!verify`.
+
+<Warning>
+  The pending bridge request expires after **2 minutes**. If no one runs `fc!verify` in time, run `fc!bridge` again to create a new request.
+</Warning>
+
+### Known limitations
+
+Same CDN and Fluxer edit limitations as `fc!setup`.
+
+---
+
+## fc!verify
+
+Approves a pending bridge request that was created by `fc!bridge` in the current channel.
+
+```
+fc!verify
+```
+
+No parameters. Fluxcord looks for an active `fc!bridge` request targeting the current channel, creates webhooks on both sides, and confirms the bridge.
+
+### Example
+
+```
+fc!verify
+```
+
+<Note>
+  Run `fc!verify` in the channel that **received** the bridge request notification, not the channel where `fc!bridge` was run.
+</Note>
+
+---
+
+## fc!unbridge
+
+Removes the bridge from the current channel and cleans up the webhooks that Fluxcord created on both sides.
+
+```
+fc!unbridge
+```
+
+No parameters. If there is a pending (unverified) `fc!bridge` request for the current channel, this cancels the request instead of removing an active bridge.
+
+### Example
+
+```
+fc!unbridge
+```
+
+---
+
+## fc!bridgelist
+
+Lists all active bridges that involve the current server or community. The output is sent as a plain-text file attachment (`channels.txt`).
+
+```
+fc!bridgelist
+```
+
+Each line in the file follows this format:
+
+```
+<fluxer-channel-name> (<fluxerChannelId>) on <fluxer-community-name> (<fluxerGuildId>) <arrow> <discord-channel-name> (<discordChannelId>) on <discord-server-name> (<discordGuildId>)
+```
+
+The arrow reflects the bridge direction:
+
+| Arrow | Direction |
+|---|---|
+| `<->` | Bidirectional (`both`) |
+| `-->` | Fluxer → Discord (`fluxer2discord`) |
+| `<--` | Discord → Fluxer (`discord2fluxer`) |
+
+### Example
+
+```
+fc!bridgelist
+```
+
+---
+
+## fc!guild sub-commands
+
+The `fc!guild` group (also aliased as `fc!g`, `fc!server`, `fc!s`, `fc!community`, `fc!c`) contains per-server configuration commands.
+
+### fc!guild seterrorlogging
+
+Sets the channel where Fluxcord posts error messages when bridging fails.
+
+```
+fc!guild seterrorlogging <channelId>
+```
+
+**Aliases:** `fc!guild errlog`, `fc!guild err`
+
+#### Parameters
+
+<ParamField path="channelId" type="string" required>
+  The ID of the channel that will receive error log messages. The type of channel (Discord or Fluxer) is determined by which platform you run the command on — a Discord channel ID is expected when run on Discord, and a Fluxer channel ID when run on Fluxer.
+</ParamField>
+
+#### Example
+
+```
+fc!guild seterrorlogging 1234567890123456789
+```
+
+<Note>
+  The server or community must already have at least one active bridge before you can set an error logging channel.
+</Note>
+
+---
+
+### fc!guild seterrorreaction
+
+Sets the emoji that Fluxcord reacts with on messages that fail to bridge. Omit the emoji argument to disable the reaction entirely.
+
+```
+fc!guild seterrorreaction <emoji>
+```
+
+**Aliases:** `fc!guild setreact`, `fc!guild setemoji`, `fc!guild se`
+
+#### Parameters
+
+<ParamField path="emoji" type="string">
+  A standard Unicode emoji (e.g. `⚠️`) or a custom server emoji in `<:name:id>` format. Omit to disable the error reaction. Custom emojis must belong to the server or community where the command is run.
+</ParamField>
+
+#### Examples
+
+```
+fc!guild seterrorreaction ⚠️
+```
+
+```
+fc!guild seterrorreaction <:broken:1234567890123456789>
+```
+
+```
+fc!guild seterrorreaction
+```
+
+The last example (no argument) disables the error reaction.

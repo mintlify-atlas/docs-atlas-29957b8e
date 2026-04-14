@@ -1,0 +1,115 @@
+---
+title: "Set up voice bridging runners"
+description: "Configure Fluxcord voice runners to bridge Discord and Fluxer voice channels — requires Docker socket access, LiveKit, and VoiceChannelMaps config."
+---
+
+Voice bridging in Fluxcord is handled by external processes called voice runners. When a user joins a configured voice channel, the core bot selects a connected runner process and sends it the credentials needed to bridge audio between Discord and Fluxer. Runners connect to the core bot's WebSocket server and are managed independently of the main container. This page covers how to configure the core bot and connect voice runners to your self-hosted deployment.
+
+<Warning>
+  Voice bridging is **alpha** — it is experimental, may behave unexpectedly, and is not recommended for production communities without thorough testing. The API and configuration format may change without notice.
+</Warning>
+
+## Architecture
+
+The voice bridging system has three layers:
+
+1. **Core bot** (`VoiceHandler.js`) — listens for voice state events on both Discord and Fluxer. When a user joins a mapped channel, it sends an OP4 (voice join) to both platforms and collects the credentials needed to start a session.
+2. **VoiceRunnerServer** (`VoiceRunnerServer.js`) — a WebSocket server embedded in the core bot that listens on `RunnerWsPort`. It accepts connections from external runner processes and dispatches `spawn` and `kill` commands to them.
+3. **Runner processes** — separate, externally managed processes that connect to `VoiceRunnerServer` via WebSocket, receive credentials, and bridge audio between the Discord voice server and Fluxer's LiveKit backend. You start and manage these independently of the core bot container.
+
+Runners authenticate using the `x-runner-secret` header and persist as long-lived connections, ready to handle sessions on demand.
+
+## Prerequisites
+
+Before enabling voice bridging, confirm the following are in place:
+
+- `RunnerSecret` is set to a long random string in `config.js`
+- `RunnerWsPort` is set (default: `8765`)
+- At least one entry is added to `VoiceChannelMaps` in `config.js`
+- At least one voice runner process is started and connected to the WebSocket server before users join a voice channel
+
+<Note>
+  The core bot does not spawn runner processes itself. You must start runner processes separately and have them connect to the WebSocket server. If no runner is connected when a user joins a voice channel, the bot logs a warning and skips the session.
+</Note>
+
+## Configuring VoiceChannelMaps
+
+Add a `VoiceChannelMaps` array to your `config.js`. Each entry maps one Discord voice channel to one Fluxer voice channel. All four fields are required per entry.
+
+```javascript config.js
+VoiceChannelMaps: [
+  {
+    discordGuildId: "123456789012345678",    // Discord server (guild) ID
+    discordChannelId: "234567890123456789",  // Discord voice channel ID
+    fluxerGuildId: "345678901234567890",     // Fluxer community ID
+    fluxerChannelId: "456789012345678901",   // Fluxer voice channel ID
+  },
+],
+```
+
+Add one object per channel pair. To bridge multiple pairs, add multiple entries to the array. Omit `VoiceChannelMaps` entirely (or leave the array empty) to disable voice bridging.
+
+## Expose the runner WebSocket port
+
+By default, the `8765` port mapping is commented out in `docker-compose.yml`:
+
+```yaml
+# ports:
+#   - "8765:8765"
+```
+
+Uncomment this block if your voice runner containers run **outside** the `fluxcord-net` Docker network — for example on a separate host or VM. Runners on the same Docker Compose network can reach the core bot by container name and do not need the port published to the host.
+
+```yaml
+ports:
+  - "8765:8765"
+```
+
+<Warning>
+  If you expose port 8765 to the internet, ensure it is firewalled or placed behind a trusted network. The `RunnerSecret` header provides authentication, but the port should not be publicly reachable unless required.
+</Warning>
+
+## Session lifecycle
+
+<Steps>
+  <Step title="User joins a mapped voice channel">
+    A non-bot user joins a Discord or Fluxer voice channel that appears in `VoiceChannelMaps`. `VoiceHandler.js` detects the voice state event and begins setting up a session.
+  </Step>
+  <Step title="OP4 sent to both platforms">
+    The bot sends an OP4 (voice channel join) to both Discord and Fluxer, signalling that it wants to join the respective voice channels and receive connection credentials.
+  </Step>
+  <Step title="Credentials gathered">
+    The bot waits to collect all required credentials: Discord voice server endpoint, session ID, and token; and Fluxer LiveKit URL and token. These are stored in the session entry in the `sessions` Map inside `VoiceHandler.js`.
+  </Step>
+  <Step title="Runner selected and spawned">
+    Once credentials are complete, `VoiceRunnerServer.js` selects an available connected runner (preferring one whose `region` string matches the LiveKit URL, falling back to any available runner) and sends it a `spawn` message containing the credentials. If no runner is connected, the bot logs a warning and the session is abandoned.
+  </Step>
+  <Step title="Audio bridged">
+    The runner container connects to both platforms using the provided credentials and begins relaying audio in both directions. The runner sends `fluxer-joined` and `fluxer-empty` messages back to the server as Fluxer-side participant state changes.
+  </Step>
+  <Step title="Session stops when both sides are empty">
+    When all non-bot users have left both the Discord and Fluxer sides of the channel, the bot sends a `kill` command to the runner, disconnects from both voice channels, and removes the session from the `sessions` Map.
+  </Step>
+</Steps>
+
+## Runner authentication
+
+Runner containers authenticate to `VoiceRunnerServer.js` by including the `x-runner-secret` HTTP header in their WebSocket upgrade request:
+
+```
+x-runner-secret: <RunnerSecret>
+```
+
+The value must match `RunnerSecret` in `config.js`. Connections without a valid secret are rejected immediately.
+
+After connecting, runners send a `hello` message identifying their region:
+
+```json
+{ "type": "hello", "region": "us-east" }
+```
+
+Set `region` to a string that appears in LiveKit URLs served to your users (for example `"us-east"` or `"eu-west"`). The core bot matches this string against the LiveKit URL when selecting a runner for a new session. If no regional match exists, it falls back to any available connected runner. Omit `region` to accept sessions from any region.
+
+<Tip>
+  Run at least one voice runner before users join a configured voice channel. If no runner is connected when a session starts, the bot cannot bridge the call.
+</Tip>

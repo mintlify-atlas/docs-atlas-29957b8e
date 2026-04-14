@@ -1,0 +1,69 @@
+---
+title: "Voice channel bridging (alpha)"
+description: "Bridge Discord voice channels to Fluxer voice using Fluxcord's experimental voice runner — requires LiveKit and additional configuration."
+---
+
+Fluxcord includes experimental support for bridging Discord voice channels to Fluxer voice channels. When a non-bot user joins a configured Discord or Fluxer voice channel, the bot automatically connects to both channels and relays audio between them using a LiveKit-backed voice runner. This feature is **alpha** — expect rough edges and potential instability.
+
+<Warning>
+  Voice bridging is experimental. It may stop working without warning, consume significant server resources, and is not recommended for production communities without thorough testing.
+</Warning>
+
+## How it works
+
+Voice bridging involves three components:
+
+1. **Fluxcord core bot** — monitors voice state events on both Discord and Fluxer. When a user joins a mapped channel, it joins both voice channels and collects the necessary credentials (Discord voice endpoint, session ID, token, and Fluxer LiveKit URL and token).
+2. **Voice runner server** — a WebSocket server embedded in the core bot (`VoiceRunnerServer.js`) that listens for connections from external voice runner processes.
+3. **Voice runner processes** — separate Docker-based workers that receive credentials from the server, connect to both platforms, and relay audio. The core bot selects a runner by region (matched against the LiveKit URL) or falls back to any available runner.
+
+Sessions start automatically when a user joins a mapped voice channel and stop when both the Discord and Fluxer sides are empty (no non-bot users remain).
+
+## Prerequisites
+
+Before enabling voice bridging:
+
+- Install dependencies in the `voice/` directory: `cd voice && pnpm install` (or `npm install`).
+- Set `RunnerWsPort` in `config.js` to the port the WebSocket server will listen on.
+- Set `RunnerSecret` to a long random string — voice runners must send this in the `x-runner-secret` header to authenticate.
+- Add at least one entry to `VoiceChannelMaps` in `config.js`.
+
+## Configuring VoiceChannelMaps
+
+Each entry in `VoiceChannelMaps` maps one Discord voice channel to one Fluxer voice channel. Add one object per channel pair:
+
+```javascript
+VoiceChannelMaps: [
+  {
+    discordGuildId: "123456789012345678",    // Discord server (guild) ID
+    discordChannelId: "234567890123456789",  // Discord voice channel ID
+    fluxerGuildId: "345678901234567890",     // Fluxer community ID
+    fluxerChannelId: "456789012345678901",   // Fluxer voice channel ID
+  },
+],
+```
+
+All four fields are required for each entry. Omit the `VoiceChannelMaps` key entirely (or leave the array empty) to disable voice bridging.
+
+## Session lifecycle
+
+1. A non-bot user joins a Discord or Fluxer voice channel listed in `VoiceChannelMaps`.
+2. The core bot joins both voice channels and waits to collect all required credentials (Discord voice server endpoint + token + session ID, and Fluxer LiveKit URL + token).
+3. Once all credentials are available, the bot sends a `spawn` command to an available voice runner over WebSocket.
+4. The runner connects to both platforms and begins relaying audio.
+5. When all non-bot users leave both channels, the bot sends a `kill` command to the runner and disconnects from both voice channels.
+
+<Note>
+  If no voice runner is connected to the WebSocket server when a user joins, the bot logs a warning and does not join the voice channels. Start at least one runner before users enter the channel.
+</Note>
+
+## Runner WebSocket protocol
+
+The voice runner WebSocket server authenticates runners via the `x-runner-secret` request header. Runners should:
+
+1. Connect to `ws://<host>:<RunnerWsPort>` with the header `x-runner-secret: <RunnerSecret>`.
+2. Send a `hello` message: `{ "type": "hello", "region": "<region>" }` — set `region` to a string that appears in LiveKit URLs for the runner's region, or omit it to accept any session.
+3. Handle incoming `spawn` and `kill` messages.
+4. Send `message`, `exit`, and `error` messages back to the server as the session progresses.
+
+The core bot selects a runner whose `region` string appears in the LiveKit URL. If no regional match is found, it picks any available connected runner.

@@ -1,0 +1,80 @@
+{
+  "projectType": "saas",
+  "projectName": "Fluxcord",
+  "projectDescription": "A self-hosted Discord bot that bridges text and voice channels between Discord and Fluxer communities.",
+  "theme": "palm",
+  "primaryColor": "#3c41a5",
+  "lightColor": "#a4acf7",
+  "darkColor": "#ffffff",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "self-hosting/quickstart",
+              "self-hosting/configuration"
+            ]
+          },
+          {
+            "group": "Bridging Guide",
+            "pages": [
+              "guides/setup-bridge",
+              "guides/bridge-types",
+              "guides/voice-bridging",
+              "guides/troubleshooting"
+            ]
+          },
+          {
+            "group": "Command Reference",
+            "pages": [
+              "commands/overview",
+              "commands/bridging",
+              "commands/admin",
+              "commands/utility"
+            ]
+          },
+          {
+            "group": "Self-Hosting",
+            "pages": [
+              "self-hosting/docker",
+              "self-hosting/configuration",
+              "self-hosting/migrations",
+              "self-hosting/voice-runner"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Bidirectional text message bridging between Discord and Fluxer channels",
+    "Voice channel bridging (alpha) using LiveKit and WebSocket runners",
+    "Edit, delete, and bulk-delete bridging across platforms",
+    "Reply and embed bridging with cross-platform formatting",
+    "Emoji, sticker, and attachment bridging",
+    "Pin synchronization across bridged channels",
+    "Flexible bridge direction: both, discord-to-fluxer, or fluxer-to-discord",
+    "Webhook-based message routing with SQLite persistence",
+    "Docker-based deployment with automatic restarts"
+  ],
+  "publicApiSurface": [
+    "fc!setup [code|direction] — initiate or complete a bridge setup",
+    "fc!bridge <channelId> <both|discord2fluxer|fluxer2discord> — bridge via channel ID",
+    "fc!verify — approve a pending bridge request",
+    "fc!unbridge — remove a bridge from the current channel",
+    "fc!bridgelist — list all active bridges",
+    "fc!guild seterrorlogging <channelId> — set an error logging channel",
+    "fc!guild seterrorreaction <emoji> — set the error reaction emoji",
+    "fc!invite — get bot invite links",
+    "fc!about — bot information",
+    "fc!uptime — bot uptime",
+    "fc!ping — bot latency",
+    "fc!help [command] — list or describe commands",
+    "fc!admin restart — restart the bot",
+    "fc!stats — view bridging statistics (owner only)"
+  ]
+}

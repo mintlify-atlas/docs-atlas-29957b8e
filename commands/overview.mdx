@@ -1,0 +1,54 @@
+---
+title: "Fluxcord command overview"
+description: "All Fluxcord bot commands organized by category — bridging setup, server administration, and utility commands with permissions required."
+---
+
+Fluxcord responds to prefix-based commands on both Discord and Fluxer. The default prefix is `fc!`, configured via the `BotPrefix` field in `config.js`. Every command is sent as a regular message in a text channel and the bot replies in the same channel.
+
+## Permission levels
+
+Commands fall into three permission tiers. Fluxcord checks these at runtime before executing any command.
+
+| Level | Who qualifies | What they can run |
+|---|---|---|
+| **Regular user** | Anyone in the server/community | Utility commands (`help`, `ping`, `uptime`, `invite`, `about`) |
+| **Server admin** | Users with **Manage Server** (Discord) or **Manage Community** (Fluxer) permission, or any ID listed in `AdminAccountIds` | Bridging commands (`setup`, `bridge`, `verify`, `unbridge`, `bridgelist`) and guild sub-commands |
+| **Bot owner** | IDs explicitly listed in `AdminAccountIds` in `config.js` | Admin commands (`stats`, `admin restart`, `dbg react`) |
+
+<Note>
+`AdminAccountIds` grants bot-owner privileges globally, regardless of server permissions. Add your own account ID during initial setup so you can run admin commands.
+</Note>
+
+## All commands
+
+| Command | Permission | Description |
+|---|---|---|
+| `fc!setup [direction\|code]` | Server admin | Interactively set up a Discord ↔ Fluxer bridge using a 6-character code |
+| `fc!bridge <channelId> <direction>` | Server admin | Initiate a bridge to a specific channel ID on the other platform |
+| `fc!verify` | Server admin | Approve a pending bridge request created by `fc!bridge` |
+| `fc!unbridge` | Server admin | Remove the bridge from the current channel and delete both webhooks |
+| `fc!bridgelist` | Server admin | List all active bridges for the current server or community |
+| `fc!guild seterrorlogging <channelId>` | Server admin | Set the channel where bridge errors are logged |
+| `fc!guild seterrorreaction <emoji>` | Server admin | Set the emoji reacted to messages that fail to bridge |
+| `fc!admin restart` | Bot owner | Restart the bot process |
+| `fc!stats` | Bot owner | Show global bridge and usage statistics |
+| `fc!dbg react` | Bot owner | Debug: trigger the configured error reaction on the current message |
+| `fc!help [command]` | Regular user | Show all available commands, or detailed help for a specific command |
+| `fc!ping` | Regular user | Show message round-trip and REST API latency |
+| `fc!uptime` | Regular user | Show how long Fluxcord and both bots have been running |
+| `fc!invite` | Regular user | Get an invite link to the bridged server or community |
+| `fc!about` | Regular user | Show bot version, bridge count, and links |
+
+## Command categories
+
+<CardGroup cols={3}>
+  <Card title="Bridging commands" icon="link" href="/commands/bridging">
+    Set up and manage channel bridges: `fc!setup`, `fc!bridge`, `fc!verify`, `fc!unbridge`, `fc!bridgelist`, and the `fc!guild` sub-commands.
+  </Card>
+  <Card title="Admin commands" icon="shield" href="/commands/admin">
+    Bot-owner-only commands: `fc!admin restart` and `fc!stats` for global statistics.
+  </Card>
+  <Card title="Utility commands" icon="wrench" href="/commands/utility">
+    General-purpose commands available to all users: `fc!help`, `fc!ping`, `fc!uptime`, `fc!invite`, and `fc!about`.
+  </Card>
+</CardGroup>

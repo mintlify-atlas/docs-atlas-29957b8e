@@ -1,97 +1,54 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Fluxcord — self-hosted Discord and Fluxer bridge"
+description: "Fluxcord is a self-hosted bot that bridges Discord servers and Fluxer communities, syncing messages, replies, edits, attachments, and voice in real time."
 ---
 
-## Setting up
+Fluxcord connects your Discord server and Fluxer community so members on both platforms can communicate in the same conversation. Once configured, messages flow automatically in both directions — including edits, deletions, replies, embeds, attachments, and pins.
 
-Get your documentation site up and running in minutes.
-
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Quick start" icon="rocket" href="/self-hosting/quickstart">
+    Deploy Fluxcord with Docker and bridge your first channel in minutes.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Configuration" icon="gear" href="/self-hosting/configuration">
+    Set bot tokens, admin accounts, prefixes, and voice mappings.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Bridging guide" icon="link" href="/guides/setup-bridge">
+    Step-by-step instructions for setting up a bridge between channels.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Command reference" icon="terminal" href="/commands/overview">
+    Full reference for every Fluxcord bot command.
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## What Fluxcord bridges
 
-Everything you need to create world-class documentation.
+Fluxcord synchronizes the following content between Discord and Fluxer channels:
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+- **Messages** — text content, with mention and emoji conversion
+- **Edits and deletions** — including bulk delete
+- **Replies** — threaded replies rendered on both platforms
+- **Embeds** — rich embeds converted across platform formats
+- **Attachments** — files up to 25 MB forwarded automatically
+- **Pins** — pinned message state kept in sync
+- **Voice** *(alpha)* — voice channel audio bridged via LiveKit runners
 
-## Need inspiration?
+## How it works
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<Steps>
+  <Step title="Deploy the bot">
+    Run Fluxcord using Docker. You need a Discord bot token and a Fluxer bot token.
+  </Step>
+  <Step title="Invite to your servers">
+    Invite the Discord bot to your Discord server and the Fluxer bot to your Fluxer community.
+  </Step>
+  <Step title="Set up a bridge">
+    Run `fc!setup` in the channel you want to bridge on one platform, then confirm on the other.
+  </Step>
+  <Step title="Messages flow automatically">
+    Fluxcord listens for events on both sides and forwards content through webhooks — no further action needed.
+  </Step>
+</Steps>
+
+<Note>
+  Fluxcord is self-hosted. You run the bot on your own infrastructure using Docker. There is no hosted version.
+</Note>

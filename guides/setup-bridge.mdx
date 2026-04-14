@@ -1,0 +1,105 @@
+---
+title: "Set up a channel bridge"
+description: "How to connect a Discord channel and a Fluxer channel using the fc!setup command — from inviting the bots to confirming the bridge."
+---
+
+Bridging a Discord channel to a Fluxer channel lets messages flow between both platforms in real time. The quickest way to do this is with the `fc!setup` command, which uses a short pairing code so you don't have to look up channel IDs. If you need more control — for example, to specify exact channel IDs in advance — you can also use `fc!bridge` with `fc!verify`.
+
+## Prerequisites
+
+Before starting:
+
+- The **Fluxcord Discord bot** must be invited to your Discord server with the **Manage Webhooks** permission.
+- The **Fluxcord Fluxer bot** must be invited to your Fluxer community.
+- You need **Manage Server** permission on both sides (or be listed in `AdminAccountIds` in the bot config).
+- Both channels must have the same **NSFW setting** — you cannot bridge an NSFW channel to a non-NSFW one, or vice versa.
+
+## Set up with `fc!setup`
+
+<Steps>
+  <Step title="Run fc!setup in the Discord channel">
+    In the Discord channel you want to bridge, run:
+
+    ```
+    fc!setup
+    ```
+
+    By default this creates a bidirectional bridge. To set the direction explicitly, pass it as a parameter:
+
+    ```
+    fc!setup both
+    fc!setup discord2fluxer
+    fc!setup fluxer2discord
+    ```
+
+    You can also use the shorthand aliases `d2f` and `f2d`.
+  </Step>
+
+  <Step title="Copy the pairing code">
+    The bot replies with an embed containing a 6-character pairing code, for example:
+
+    ```
+    fc!setup a1b2c3
+    ```
+
+    Copy that full command. The code expires after **5 minutes** — if it times out, run `fc!setup` again.
+  </Step>
+
+  <Step title="Run the code in the Fluxer channel">
+    Switch to the Fluxer channel you want to bridge, then paste and send the command the bot gave you:
+
+    ```
+    fc!setup a1b2c3
+    ```
+  </Step>
+
+  <Step title="Confirm the bridge">
+    Both channels will receive a confirmation message:
+
+    > 🎉 This channel is now bridged to Discord!
+
+    > 🎉 This channel is now bridged to Fluxer!
+
+    The bridge is now active. Messages sent in either channel will appear in the other (depending on the direction you chose).
+  </Step>
+</Steps>
+
+<Note>
+  If a channel is already part of an existing bridge, `fc!setup` will tell you. Run `fc!unbridge` first, then set up the new bridge.
+</Note>
+
+## Alternative: `fc!bridge` and `fc!verify`
+
+For advanced setups where you already know the target channel ID, you can bypass the pairing code flow:
+
+1. In one channel, run `fc!bridge <channelId> <type>` — where `<channelId>` is the ID of the channel on the **other platform**, and `<type>` is `both`, `discord2fluxer`, or `fluxer2discord`.
+2. The bot notifies the target channel that a bridge request is pending.
+3. In the target channel, run `fc!verify` within **2 minutes** to approve. The bridge is created immediately on approval.
+
+<Tip>
+  `fc!bridge` is useful when scripting or managing bridges in bulk, since it doesn't require you to switch between platforms mid-flow.
+</Tip>
+
+## NSFW channel restriction
+
+Both channels must have the same NSFW status. If one channel is marked NSFW and the other is not, the bot will reject the bridge:
+
+> Both channels needs to be set as NSFW to bridge them.
+
+Adjust the channel settings on both platforms and try again.
+
+## Remove a bridge
+
+To remove an existing bridge, run the following in either the Discord or Fluxer channel:
+
+```
+fc!unbridge
+```
+
+The bot removes the bridge and cleans up the webhooks on both sides.
+
+## Platform restriction
+
+Fluxcord only bridges between Discord and Fluxer. Bridging Discord↔Discord or Fluxer↔Fluxer is not supported. If you run `fc!setup <code>` with a code generated on the same platform, the bot will reject it:
+
+> We don't support Fluxer \<-> Fluxer or Discord \<-> Discord currently.

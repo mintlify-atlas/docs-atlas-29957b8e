@@ -1,0 +1,159 @@
+---
+title: "Deploy Fluxcord with Docker"
+description: "Run Fluxcord in a Docker container using the provided Dockerfile and docker-compose.yml — with volume mounts, restart policies, and voice runner networking."
+---
+
+Fluxcord ships with a `Dockerfile` and `docker-compose.yml` that handle everything from installing dependencies to running database migrations before the bot starts. The recommended deployment path is Docker Compose: it handles volume mounts for persistent data, a dedicated bridge network, and a restart policy that keeps the bot running across reboots.
+
+## Prerequisites
+
+- [Docker Engine](https://docs.docker.com/engine/install/) 24 or later
+- [Docker Compose](https://docs.docker.com/compose/install/) v2 (bundled with Docker Desktop)
+- Node.js 20+ (only needed if running outside Docker)
+
+## Dockerfile
+
+The image is based on `node:20-trixie` and installs dependencies via pnpm before copying source files.
+
+```dockerfile
+FROM node:20-trixie
+
+ENV PNPM_HOME="/pnpm"
+
+ENV PATH="$PNPM_HOME:$PATH"
+
+RUN wget -qO- https://get.pnpm.io/install.sh | ENV="$HOME/.bashrc" SHELL="$(which bash)" bash -
+
+WORKDIR /app
+
+COPY package*.json ./
+
+COPY pnpm-workspace.yaml ./
+
+RUN pnpm install
+
+COPY . .
+
+RUN sed -i 's/\r//' docker-entrypoint.sh && chmod +x docker-entrypoint.sh
+
+CMD ["./docker-entrypoint.sh"]
+```
+
+The `sed` step strips Windows-style line endings from `docker-entrypoint.sh` so the script runs correctly on Linux regardless of how the repository was checked out.
+
+## docker-compose.yml
+
+```yaml
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: "./Dockerfile"
+      tags:
+        - "fluxcord:latest"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - "./data:/data"
+    restart: unless-stopped
+    # ports:
+    #   - "8765:8765"
+    networks:
+      - fluxcord-net
+
+networks:
+  fluxcord-net:
+    driver: bridge
+    name: fluxcord-net
+```
+
+## Volume mounts
+
+### `/var/run/docker.sock`
+
+The Docker socket is mounted so that voice runner processes — which run as separate containers on the same host — can communicate with the Docker daemon if needed. If you are not using voice bridging, this mount is not required but is included in the default compose file.
+
+<Warning>
+Mounting the Docker socket grants the container significant privileges over the host. Run Fluxcord on a trusted host and restrict access to the container accordingly.
+</Warning>
+
+### `./data:/data`
+
+All persistent state lives under `/data` inside the container, mapped from the `./data` directory next to your `docker-compose.yml`. This directory is created automatically on first run and contains:
+
+- `fluxcord.db` — the SQLite database
+- `fluxcord.json` — generated on first startup; stores the emoji IDs for reply indicators (`reply_l`, `reply_r`) created during the first-time setup process
+
+Back this directory up before upgrading Fluxcord.
+
+## Entrypoint flow
+
+The container runs `docker-entrypoint.sh` as its command:
+
+```sh
+#!/bin/sh
+set -e
+pnpm run migrate
+exec pnpm run start
+```
+
+<Steps>
+  <Step title="Run migrations">
+    `pnpm run migrate` invokes Umzug to apply any pending database migrations against `fluxcord.db`. If a migration fails the script exits immediately (`set -e`) and the bot does not start.
+  </Step>
+  <Step title="Start the bot">
+    `exec pnpm run start` replaces the shell process with `node ./index.js`, so Docker correctly tracks the bot process for health checks and signal forwarding.
+  </Step>
+</Steps>
+
+## Environment and config
+
+Fluxcord reads its configuration from `config.js` in the repository root. Before building the Docker image, copy `config.example.js` to `config.js` and fill in your tokens — the Dockerfile copies the entire repository into the image, including `config.js`.
+
+The `DataFolderPath` config key defaults to `/data`, which matches the container volume mount. Do not change this value when running in Docker.
+
+`NODE_ENV` is not set by the Dockerfile; set it in `docker-compose.yml` under `environment:` if your config or dependencies branch on it.
+
+## Restart policy
+
+The `unless-stopped` restart policy restarts the container automatically after a crash or host reboot. It does **not** restart the container if you explicitly stop it with `docker compose stop` or `docker compose down`. This is the right default for a long-running bot process.
+
+## Network
+
+All containers are placed on a bridge network named `fluxcord-net`. If you run voice runners as separate containers, they must also join this network so they can reach the core bot's WebSocket server.
+
+## Voice runner port
+
+The `8765` port mapping for the voice runner WebSocket server is commented out by default:
+
+```yaml
+# ports:
+#   - "8765:8765"
+```
+
+Uncomment this block only when voice runners run **outside** the `fluxcord-net` Docker network — for example on a separate host or VM. Runners on the same Docker network can reach the core bot directly by container name and do not need the port exposed to the host.
+
+See [Set up voice bridging runners](/self-hosting/voice-runner) for the full voice runner setup guide.
+
+## Build and run
+
+<Steps>
+  <Step title="Build the image">
+    ```bash
+    docker compose build
+    ```
+  </Step>
+  <Step title="Start the bot in the background">
+    ```bash
+    docker compose up -d
+    ```
+  </Step>
+  <Step title="Follow logs">
+    ```bash
+    docker compose logs -f bot
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+Run `docker compose up` (without `-d`) during initial setup so you can watch migration output and catch configuration errors in real time before daemonising.
+</Tip>

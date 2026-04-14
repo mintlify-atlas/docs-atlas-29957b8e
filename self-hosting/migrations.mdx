@@ -1,0 +1,85 @@
+---
+title: "Database migrations"
+description: "Fluxcord uses Umzug to manage its SQLite schema. Migrations run automatically on startup, or manually with pnpm run migrate."
+---
+
+Fluxcord stores all persistent state in a SQLite database managed by [Umzug](https://github.com/sequelize/umzug). Every time the bot starts, the Docker entrypoint runs `pnpm run migrate` before launching the bot process, ensuring the schema is always up to date. You can also run migrations manually — for example, after pulling an update before restarting the bot.
+
+## Database location
+
+The database file is created at `DataFolderPath + "/fluxcord.db"`. With the default Docker Compose setup this resolves to `/data/fluxcord.db` inside the container, which maps to `./data/fluxcord.db` on the host.
+
+<Note>
+  Do not change `DataFolderPath` from its default of `/data` when running under Docker Compose. The volume mount `./data:/data` is already configured to match.
+</Note>
+
+## Running migrations
+
+### Automatic (recommended)
+
+Migrations run automatically every time the container starts. The entrypoint script runs `pnpm run migrate` before `pnpm start`, so you never need to think about them during normal operation.
+
+### Manual
+
+To run migrations outside of the container startup sequence — for example, to verify pending migrations before a restart — execute:
+
+```bash
+pnpm run migrate
+```
+
+This calls `pnpx tsx ./migrate.ts`, which invokes Umzug against the database at `DataFolderPath`.
+
+To run this inside a running container:
+
+```bash
+docker compose exec bot pnpm run migrate
+```
+
+## Migration files
+
+Fluxcord ships 8 migration files in the `migrations/` directory. They are applied in chronological order and each runs exactly once.
+
+| File | What it does |
+|---|---|
+| `2026-02-22-initial.ts` | Creates the `ChannelMaps` and `MessageMaps` tables — the core data model for channel bridges and bridged message tracking |
+| `2026-02-22-userconfig.ts` | Creates the `UserConfigs` table with `userId`, `userType`, and `doNotBridgePrefix` fields |
+| `2026-02-24-add-error-channel.ts` | Adds `errorLoggingChannelId` and `errorLoggingPlatform` columns to `ChannelMaps` |
+| `2026-03-03-add-guild-map-and-stuff.ts` | Creates the `GuildMaps` table, migrates error logging fields from `ChannelMaps` to `GuildMaps`, and adds `DiscordGuildMapId` / `FluxerGuildMapId` foreign keys to `ChannelMaps` |
+| `2026-03-06-remove-proxy-compat-opt-in.ts` | Removes the `proxyCompatibility` column from `UserConfigs` |
+| `2026-04-13-1-add-reply-map-thingy.ts` | Adds `discordReplyId` and `fluxerReplyId` columns to `MessageMaps` for reply bridging |
+| `2026-04-13-2-make-cascade.ts` | Updates foreign key constraints on `MessageMaps` and `ChannelMaps` to use `ON DELETE CASCADE` |
+| `2026-04-13-3-cleanup-db-before-the-cascade.ts` | Deletes orphaned rows from `MessageMaps` and `ChannelMaps` that reference non-existent parent records before cascade enforcement |
+
+## Data model
+
+Fluxcord defines four SQLite models in `db/index.js`:
+
+### `GuildMap`
+
+Stores one row per Discord server or Fluxer community that has an active bridge. Fields include `guildId`, `guildType` (`"discord"` or `"fluxer"`), `errorReaction` (the emoji reacted on failed messages, defaults to `⛓️‍💥`), `errorLoggingChannelId`, `errorLoggingPlatform`, and `botPrefix`.
+
+### `ChannelMap`
+
+Stores one row per bridged channel pair. Holds both the Discord and Fluxer channel IDs, guild IDs, webhook IDs and tokens for both sides, and `bridgeType` (`"both"`, `"discord2fluxer"`, or `"fluxer2discord"`). Foreign keys link to the `GuildMap` rows for each guild.
+
+### `MessageMap`
+
+Stores the relationship between a message on one platform and its bridged counterpart on the other. Tracks `discordMessageId`, `fluxerMessageId`, `authorId`, `content`, and reply IDs (`discordReplyId`, `fluxerReplyId`). Used to relay edits, deletions, and reply threading across the bridge.
+
+### `UserConfig`
+
+Stores per-user settings. The `doNotBridgePrefix` field allows a user to set a message prefix — any message starting with that prefix will not be forwarded across the bridge.
+
+## Before upgrading
+
+<Warning>
+  Back up the `./data` directory before pulling a new version of Fluxcord. Migrations cannot be rolled back automatically. If a migration fails, restore from your backup before restarting.
+</Warning>
+
+To back up the data directory:
+
+```bash
+cp -r ./data ./data-backup-$(date +%Y%m%d)
+```
+
+Do not edit `fluxcord.db` directly with a SQLite client while the bot is running. Schema changes made outside of the migration system will conflict with future migrations and corrupt the database state.

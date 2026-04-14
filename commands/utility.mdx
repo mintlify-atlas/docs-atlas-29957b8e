@@ -1,0 +1,142 @@
+---
+title: "Utility commands"
+description: "General-purpose Fluxcord commands available to all users: fc!help, fc!ping, fc!uptime, fc!invite, and fc!about."
+---
+
+Utility commands are available to every user in any channel where Fluxcord is present. No elevated permissions are required. These commands are useful for checking bot status, getting invite links, and learning about the bot.
+
+---
+
+## fc!help
+
+Shows available commands or detailed help for a specific command.
+
+```
+fc!help [command]
+```
+
+**Aliases:** `fc!?`
+
+### Parameters
+
+<ParamField path="command" type="string">
+  Name or alias of the command to look up. Supports top-level command names (e.g. `setup`), aliases (e.g. `?`), and group commands (e.g. `guild seterrorlogging`). Omit to list all commands the current user has permission to see.
+</ParamField>
+
+### Behaviour
+
+- **Without arguments** — Fluxcord replies with an embed listing every command visible to the calling user. Commands that require elevated permissions are hidden from regular users, and commands that require bot-owner permissions are hidden from non-owners.
+- **With a command name** — Fluxcord replies with an embed showing the full syntax, all aliases, the description, and any additional notes for that command.
+
+### Examples
+
+```
+fc!help
+```
+
+```
+fc!help setup
+```
+
+```
+fc!help guild seterrorlogging
+```
+
+---
+
+## fc!ping
+
+Shows latency between Fluxcord and both platforms' APIs.
+
+```
+fc!ping
+```
+
+No parameters. Fluxcord sends an initial "Pinging..." message, measures the round-trip time, then edits the message with an embed containing three fields:
+
+| Field | Description |
+|---|---|
+| **Message round-trip** | Time in milliseconds from sending the reply to receiving the edit confirmation (labeled "Fluxer Message round-trip" or "Discord Message round-trip" depending on where the command was run) |
+| **Fluxer REST** | Time for a `GET /users/@me` request to the Fluxer API |
+| **Discord REST** | Time for a `GET /applications/@me` request to the Discord API |
+
+### Example
+
+```
+fc!ping
+```
+
+---
+
+## fc!uptime
+
+Shows how long Fluxcord and each connected bot client have been running.
+
+```
+fc!uptime
+```
+
+No parameters. The reply embed contains three fields:
+
+| Field | Description |
+|---|---|
+| **Fluxcord itself** | Time since the Fluxcord process started (set at application startup) |
+| **Fluxer bot** | Time since the Fluxer client reported ready |
+| **Discord bot** | Time since the Discord client reported ready |
+
+### Example
+
+```
+fc!uptime
+```
+
+---
+
+## fc!invite
+
+Generates an invite link to the server or community on the **other** platform that the current channel is bridged to.
+
+```
+fc!invite
+```
+
+No parameters. The channel must be part of an active bridge. Fluxcord replies with a link to the bridged server or community:
+
+- If run on **Fluxer**, returns a Discord invite link (`https://discord.gg/...`).
+- If run on **Discord**, returns a Fluxer invite link (`https://fluxer.gg/...`).
+
+If the target server has a vanity URL, that is used directly. Otherwise, Fluxcord creates a temporary invite valid for **2 days** (`maxAge: 172800` seconds).
+
+### Example
+
+```
+fc!invite
+```
+
+<Note>
+  `fc!invite` only works in a channel that is part of an active bridge. If the channel is not bridged, the bot replies "This channel isn't part of a bridge."
+</Note>
+
+---
+
+## fc!about
+
+Shows general information about the Fluxcord instance.
+
+```
+fc!about
+```
+
+No parameters. The reply embed includes:
+
+- **Title** — "Fluxcord" followed by the current package version (e.g. `Fluxcord 1.2.3`).
+- **Thumbnail** — The Fluxcord logo.
+- **Description** — A short description of Fluxcord and the current number of bridged channels.
+- **Support community** — Links to the Fluxer and Discord support servers.
+- **Source code** — Link to the source repository at `https://git.gay/Fluxcord/core`.
+
+### Example
+
+```
+fc!about
+```

@@ -1,0 +1,68 @@
+---
+title: "Fluxcord: bridge Discord servers and Fluxer communities"
+description: "Fluxcord bridges Discord and Fluxer channels via webhooks, forwarding messages, edits, replies, attachments, pins, and voice between both platforms."
+---
+
+Fluxcord is a self-hosted bridge bot that connects Discord servers and Fluxer communities so that messages flow between them in real time. If your community lives across both platforms, Fluxcord removes the need to repeat yourself: post once, and everyone sees it — whether they're on Discord or Fluxer.
+
+## Key features
+
+<CardGroup cols={3}>
+  <Card title="Message bridging" icon="messages">
+    Text messages sent on either platform are forwarded to the other side via webhooks, preserving the sender's username and avatar.
+  </Card>
+  <Card title="Edit and delete sync" icon="pen-to-square">
+    When a message is edited or deleted on Fluxer, the corresponding bridged message on Discord is updated or removed automatically.
+  </Card>
+  <Card title="Reply bridging" icon="comment">
+    Replies are bridged with visual reply indicators using custom emoji (`reply_l` / `reply_r`), created automatically on first run.
+  </Card>
+  <Card title="Embed and attachment support" icon="paperclip">
+    Embeds and file attachments are forwarded across the bridge, including images, videos, and rich link previews.
+  </Card>
+  <Card title="Pin sync" icon="thumbtack">
+    Pinning a message on either side is reflected on the other, keeping important content visible in both communities.
+  </Card>
+  <Card title="Voice bridging" icon="microphone">
+    Alpha-stage voice bridging links Discord voice channels to Fluxer voice channels via configurable channel maps and a WebSocket runner.
+  </Card>
+</CardGroup>
+
+## How it works
+
+Fluxcord runs two bot clients simultaneously — one built with [discord.js](https://discord.js.org) for Discord and one built with [@fluxerjs/core](https://www.npmjs.com/package/@fluxerjs/core) for Fluxer. When a message arrives on either platform, the corresponding handler looks up the channel bridge in a local SQLite database and forwards the message to the other side through a webhook. This webhook delivery preserves the original sender's display name and avatar, making bridged messages look native.
+
+Persistent data — channel maps, guild maps, reply emoji IDs — is stored in a local `/data` directory so the bot picks up where it left off after a restart.
+
+## Bridge directions
+
+When you run `fc!setup` in a channel, you choose how messages flow:
+
+| Direction | Value | Description |
+|---|---|---|
+| Bidirectional | `both` (default) | Messages flow from Discord to Fluxer and from Fluxer to Discord. |
+| Discord → Fluxer | `discord2fluxer` (or `d2f`) | Only messages from Discord are forwarded to Fluxer. |
+| Fluxer → Discord | `fluxer2discord` (or `f2d`) | Only messages from Fluxer are forwarded to Discord. |
+
+## Known limitations
+
+<Warning>
+  These are current platform constraints, not bugs. They cannot be worked around without upstream changes to Discord or Fluxer.
+</Warning>
+
+- **Edits from Discord to Fluxer do not bridge.** Due to Fluxer platform limitations, message edits made on the Discord side are not propagated to Fluxer. Edits made on Fluxer *do* bridge to Discord.
+- **NSFW channels require matching NSFW state.** A Fluxer NSFW channel can only be bridged to a Discord NSFW channel, and vice versa. Mismatched NSFW settings will be rejected during setup.
+- **Attachment delivery can fail.** If either the Discord CDN or the Fluxer CDN returns a corrupted or missing file, the attachment will not bridge ("eaten" by the bridge).
+- **Voice bridging is alpha.** Voice channel bridging is functional but experimental. Expect rough edges and potential instability.
+- **No Fluxer ↔ Fluxer or Discord ↔ Discord.** Each bridge must connect one Discord channel to one Fluxer channel — same-platform bridges are not supported.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Deploy with Docker" icon="docker" href="/self-hosting/quickstart">
+    Get Fluxcord running in under 10 minutes using Docker Compose.
+  </Card>
+  <Card title="Configuration reference" icon="sliders" href="/self-hosting/configuration">
+    Explore every option available in `config.js`.
+  </Card>
+</CardGroup>

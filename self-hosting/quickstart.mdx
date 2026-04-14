@@ -1,0 +1,191 @@
+---
+title: "Get started with Fluxcord"
+description: "Learn how to deploy Fluxcord with Docker Compose and bridge your first Discord text channel to a Fluxer community in under 10 minutes."
+---
+
+Fluxcord runs as a pair of bot processes — one for Discord, one for Fluxer — packaged together in a single Docker image. This guide walks you through cloning the repository, filling in your tokens, starting the bot, and bridging your first channel pair.
+
+## Prerequisites
+
+Before you begin, make sure you have the following:
+
+- **Docker** and **Docker Compose** installed on your host machine
+- A **Discord bot token** and its **client ID** (from the [Discord Developer Portal](https://discord.com/developers/applications))
+- A **Fluxer bot token** (from the Fluxer developer dashboard)
+- The **ID of a Fluxer community** that the Fluxer bot is a member of — this community is used as a temporary emoji store for reply indicators
+
+<Note>
+  The Fluxer emoji community does not need to be the same community you intend to bridge. It is only used to store the `reply_l` and `reply_r` custom emoji on first run.
+</Note>
+
+## Setup
+
+<Steps>
+  <Step title="Clone the repository">
+    Pull the Fluxcord core repository to your server:
+
+    ```bash
+    git clone https://git.gay/Fluxcord/core fluxcord
+    cd fluxcord
+    ```
+
+    <Warning>
+      Do not pull this repository if you intend to develop or contribute to Fluxcord. The development monorepo is at `https://git.gay/Fluxcord/dev`.
+    </Warning>
+  </Step>
+
+  <Step title="Create your config file">
+    Copy the example config and open it for editing:
+
+    ```bash
+    cp config.example.js config.js
+    ```
+
+    Fill in at minimum the four required fields:
+
+    ```javascript config.js
+    const Config = {
+      FluxerAPIBaseURL: "https://api.fluxer.app",
+      DataFolderPath: "/data",
+
+      DiscordBotToken: "YOUR_DISCORD_BOT_TOKEN",
+      DiscordClientId: "YOUR_DISCORD_CLIENT_ID",
+
+      FluxerBotToken: "YOUR_FLUXER_BOT_TOKEN",
+      FluxerTempEmojiGuildId: "YOUR_FLUXER_COMMUNITY_ID",
+
+      AdminAccountIds: ["YOUR_DISCORD_OR_FLUXER_USER_ID"],
+
+      EmbedFooterContent: "",
+      LoggingCategories: ["FLUXER", "DISCORD", "META", "VOICE"],
+      BotPrefix: "fc!",
+      RunnerWsPort: 8765,
+      RunnerSecret: "",
+    };
+
+    export default Config;
+    ```
+
+    See the [configuration reference](/self-hosting/configuration) for a full description of every option.
+  </Step>
+
+  <Step title="Start the bot with Docker Compose">
+    The repository includes a ready-to-use `docker-compose.yml`:
+
+    ```yaml docker-compose.yml
+    services:
+      bot:
+        build:
+          context: .
+          dockerfile: "./Dockerfile"
+          tags:
+            - "fluxcord:latest"
+        volumes:
+          - /var/run/docker.sock:/var/run/docker.sock
+          - "./data:/data"
+        restart: unless-stopped
+        # ports:
+        #   - "8765:8765"
+        networks:
+          - fluxcord-net
+
+    networks:
+      fluxcord-net:
+        driver: bridge
+        name: fluxcord-net
+    ```
+
+    Build the image and start the container:
+
+    ```bash
+    docker compose up -d
+    ```
+
+    <Tip>
+      The `data/` directory is mounted to `/data` inside the container. Fluxcord stores its SQLite database and generated config here. Back this directory up if you want to preserve your bridges across reinstalls.
+    </Tip>
+
+    On startup, the entrypoint runs any pending database migrations before launching the bot:
+
+    ```sh
+    pnpm run migrate
+    pnpm run start
+    ```
+  </Step>
+
+  <Step title="Get the invite links">
+    Once both bot clients connect successfully, Fluxcord prints invite links for both bots in the container logs:
+
+    ```bash
+    docker compose logs -f
+    ```
+
+    You will see output similar to:
+
+    ```
+    ┌──────────────────────────────────────────────────────────────┐
+    │ To invite Fluxcord to your server, here's the invite links:  │
+    │                                                              │
+    │ Discord:                                                     │
+    │ https://discord.com/oauth2/authorize?client_id=...           │
+    │                                                              │
+    │ Fluxer:                                                      │
+    │ https://fluxer.app/oauth/authorize?client_id=...             │
+    └──────────────────────────────────────────────────────────────┘
+    ```
+
+    Copy both URLs for the next step.
+  </Step>
+
+  <Step title="Invite both bots">
+    Open each invite URL in your browser:
+
+    - Use the **Discord invite link** to add the Discord bot to your Discord server.
+    - Use the **Fluxer invite link** to add the Fluxer bot to your Fluxer community.
+
+    Both bots must be present in their respective servers before you can set up a bridge.
+  </Step>
+
+  <Step title="Bridge a channel with fc!setup">
+    In a Discord channel you want to bridge, run:
+
+    ```
+    fc!setup
+    ```
+
+    The bot replies with a short setup code and asks you to run it on the other side. Go to the corresponding Fluxer channel and run:
+
+    ```
+    fc!setup <code>
+    ```
+
+    You can also pass a direction argument to control which way messages flow:
+
+    | Command | Bridge direction |
+    |---|---|
+    | `fc!setup` | Both directions (default) |
+    | `fc!setup both` | Both directions |
+    | `fc!setup discord2fluxer` | Discord → Fluxer only |
+    | `fc!setup fluxer2discord` | Fluxer → Discord only |
+
+    When the code is accepted, both channels receive a confirmation message and the bridge is live.
+
+    <Note>
+      Setup codes expire after 5 minutes. If the code expires, run `fc!setup` again to generate a new one.
+    </Note>
+  </Step>
+</Steps>
+
+## First-time setup
+
+On the very first run, Fluxcord detects that `data/fluxcord.json` does not yet exist and performs automatic first-time setup:
+
+1. It uploads `reply_l` and `reply_r` custom emoji to the Fluxer community specified by `FluxerTempEmojiGuildId`.
+2. It creates application-level emoji on Discord for the same images.
+3. It writes the resulting emoji IDs to `data/fluxcord.json` for future use.
+
+These emoji are used to render reply indicators when a bridged message is a reply. You do not need to upload them manually.
+
+<Tip>
+  If first-time setup fails (e.g., the bot lacks emoji management permissions), it logs the error and continues running. Re-triggering setup is done by deleting `data/fluxcord.json` and restarting the bot.
+</Tip>

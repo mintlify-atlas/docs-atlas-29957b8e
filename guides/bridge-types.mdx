@@ -1,0 +1,89 @@
+---
+title: "Bridge types and direction"
+description: "Choose between bidirectional (both), Discord-to-Fluxer, or Fluxer-to-Discord bridge directions when setting up Fluxcord channel bridges."
+---
+
+When you create a bridge, you choose which direction messages flow. Fluxcord supports three modes: bidirectional (`both`), one-way from Discord to Fluxer (`discord2fluxer`), and one-way from Fluxer to Discord (`fluxer2discord`). Choosing the right direction lets you control where messages appear and avoids duplicating content in integrations or read-only announcement channels.
+
+## Bridge directions
+
+### `both` (default)
+
+Messages flow in both directions. Anything posted in the Discord channel appears in the Fluxer channel, and anything posted in the Fluxer channel appears in the Discord channel.
+
+This is the default when you run `fc!setup` with no parameters.
+
+### `discord2fluxer`
+
+Messages flow from Discord to Fluxer only. Posts in the Fluxer channel are **not** forwarded to Discord.
+
+Use this when Discord is the primary channel and Fluxer is a read-only mirror, or for announcement channels you manage on Discord.
+
+### `fluxer2discord`
+
+Messages flow from Fluxer to Discord only. Posts in the Discord channel are **not** forwarded to Fluxer.
+
+Use this when Fluxer is the primary channel and you want Discord members to see activity without being able to influence the Fluxer side.
+
+## Specifying direction in `fc!setup`
+
+Pass the direction as the first parameter to `fc!setup`:
+
+```
+fc!setup both
+fc!setup discord2fluxer
+fc!setup fluxer2discord
+```
+
+The shorthand aliases `d2f` and `f2d` also work:
+
+```
+fc!setup d2f
+fc!setup f2d
+```
+
+For `fc!bridge`, pass the direction as the second parameter:
+
+```
+fc!bridge <channelId> both
+fc!bridge <channelId> discord2fluxer
+fc!bridge <channelId> fluxer2discord
+```
+
+## Direction summary
+
+| Direction | Discord → Fluxer | Fluxer → Discord |
+|---|---|---|
+| `both` | Yes | Yes |
+| `discord2fluxer` | Yes | No |
+| `fluxer2discord` | No | Yes |
+
+## What gets synced
+
+The following table shows which features are bridged in each direction. All features listed apply per-direction — for example, edits from Fluxer bridge to Discord in `both` and `fluxer2discord` bridges, but edits from Discord **never** bridge to Fluxer (a Fluxer platform limitation).
+
+| Feature | Discord → Fluxer | Fluxer → Discord |
+|---|---|---|
+| New messages | Yes | Yes |
+| Message edits | No (Fluxer limitation) | Yes |
+| Message deletes | Yes | Yes |
+| Bulk deletes | Yes | Yes |
+| Pins | Yes | Yes |
+| Attachments (under size limit) | Yes | Yes |
+| Embeds | Yes | Yes |
+| Stickers | Linked as text | Linked as text |
+| Replies | Yes (shown as quote) | Yes (shown as quote) |
+| Forwarded messages | Yes | Yes |
+
+<Note>
+  Edits made in Discord are **not** forwarded to Fluxer due to a Fluxer platform limitation. Edits on the Fluxer side do bridge to Discord.
+</Note>
+
+## Attachment size limits
+
+Attachments are forwarded as long as they are within the platform's size limits:
+
+- Discord → Fluxer: attachments under **~25 MB** are forwarded directly; larger files are linked as text in the message.
+- Fluxer → Discord: attachments under **~10 MB** are forwarded directly; larger files are linked as text in the message.
+
+If the CDN on either platform fails to serve an attachment, it may appear missing or corrupted in the bridged channel. This is a known issue caused by CDN instability, not a bug in Fluxcord.

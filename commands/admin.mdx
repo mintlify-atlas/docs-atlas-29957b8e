@@ -1,0 +1,85 @@
+---
+title: "Bot admin commands: restart and stats"
+description: "Bot owner-only commands for managing a Fluxcord instance: fc!admin restart to cycle the process and fc!stats to view global bridge statistics."
+---
+
+Admin commands are restricted to accounts whose IDs are listed in `AdminAccountIds` inside `config.js`. These commands exist for the person operating the Fluxcord instance and are not intended for regular server members or even server administrators.
+
+<Warning>
+  These commands can only be run by bot owners listed in `AdminAccountIds`. Any other user who attempts to run them will receive an error: "Only bot admins can execute this command!"
+</Warning>
+
+---
+
+## fc!admin restart
+
+Gracefully stops the bot process. When running under Docker with a restart policy (e.g. `unless-stopped` or `always`), the container automatically comes back up.
+
+```
+fc!admin restart
+```
+
+**Aliases:** `fc!a restart`, `fc!admin r`, `fc!a r`
+
+The bot replies "Restarting..." and then exits with code **67**. Your process manager or Docker restart policy is responsible for bringing it back up.
+
+### Example
+
+```
+fc!admin restart
+```
+
+<Note>
+  Fluxcord exits with code 67, not 0, so process supervisors can distinguish a deliberate restart from a crash. Make sure your Docker compose file or systemd unit is configured to restart on this exit code (or on any non-zero code).
+</Note>
+
+---
+
+## fc!stats
+
+Displays global usage statistics for the running Fluxcord instance in an embed.
+
+```
+fc!stats
+```
+
+No parameters. The embed contains the following fields:
+
+| Field | Description |
+|---|---|
+| **Messages bridged** | Total number of messages that have been forwarded across all active bridges |
+| **Channels bridged** | Total number of channel pairs currently connected |
+| **Discord Guilds** | Number of Discord servers the bot is in |
+| **Fluxer Guilds** | Number of Fluxer communities the bot is in |
+| **Discord Members** | Combined member count across all Discord servers |
+| **Fluxer Members** | Combined member count across all Fluxer communities |
+
+### Example
+
+```
+fc!stats
+```
+
+---
+
+## fc!dbg react
+
+Triggers the configured error reaction on the message that invokes the command. Used to verify that `fc!guild seterrorreaction` is working correctly.
+
+```
+fc!dbg react
+```
+
+**Aliases:** `fc!debug react`, `fc!dbg r`, `fc!debug r`
+
+If the current server or community has an error reaction configured via `fc!guild seterrorreaction`, Fluxcord reacts to the command message with that emoji. If no reaction is configured, it falls back to `⛓️‍💥`. The bot also replies "done" to confirm the action completed.
+
+### Example
+
+```
+fc!dbg react
+```
+
+<Tip>
+  Use this command immediately after setting up `fc!guild seterrorreaction` to confirm the emoji resolves correctly before any bridging errors occur.
+</Tip>
